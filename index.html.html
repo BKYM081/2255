@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星火抉择——土地革命与长征</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'SimSun', 'STKaiti', serif; background-color: #1a0f0f; color: #f5e6d3; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .game-header { text-align: center; padding: 20px 0; border-bottom: 2px solid #8B0000; margin-bottom: 20px; }
+        .game-header h1 { font-size: 2.5rem; color: #FFD700; margin-bottom: 10px; }
+        .game-header h2 { font-size: 1.2rem; color: #FF4500; font-style: italic; }
+        .game-content { background: rgba(26, 15, 15, 0.9); border: 1px solid #8B0000; border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+        .scene-title { color: #FFD700; font-size: 1.5rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #8B0000; }
+        .scene-content { font-size: 1.1rem; margin-bottom: 20px; line-height: 1.8; }
+        .diary-box { background: rgba(139, 0, 0, 0.1); border-left: 3px solid #8B0000; padding: 10px; margin: 15px 0; font-style: italic; color: #FFD700; }
+        .slogan-box { background: rgba(178, 34, 34, 0.1); border: 1px dashed #8B0000; padding: 10px; margin: 10px 0; text-align: center; font-weight: bold; color: #FF6347; }
+        .choices-container { margin-top: 20px; }
+        .choices-container h3 { color: #FFD700; margin-bottom: 10px; }
+        .choice-btn { display: block; width: 100%; background: #8B0000; color: white; border: none; padding: 12px 15px; margin: 8px 0; text-align: left; font-size: 1rem; cursor: pointer; border-radius: 4px; }
+        .choice-btn:hover { background: #B22222; }
+        .score-display { text-align: center; font-size: 1.1rem; color: #FFD700; margin: 10px 0; }
+        .ending-container { text-align: center; padding: 20px; }
+        .ending-title { color: #FFD700; font-size: 1.8rem; margin-bottom: 15px; }
+        .ending-description { font-size: 1.1rem; margin-bottom: 15px; }
+        .historical-note { background: rgba(139, 0, 0, 0.2); padding: 10px; border-radius: 4px; margin-top: 15px; }
+        .ending-detail { font-style: italic; color: #FFD700; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #8B0000; }
+        .restart-btn { display: inline-block; background: #8B0000; color: white; border: none; padding: 10px 20px; font-size: 1rem; cursor: pointer; border-radius: 4px; margin-top: 15px; }
+        .restart-btn:hover { background: #B22222; }
+        .game-footer { text-align: center; padding: 15px 0; border-top: 1px solid #8B0000; margin-top: 20px; font-size: 0.8rem; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-header">
+            <h1>星火抉择</h1>
+            <h2>土地革命与长征互动文字游戏</h2>
+        </div>
+        <div class="game-content" id="game-content"></div>
+        <div class="game-footer">
+            <p>基于《中国近现代史纲要》课程内容改编</p>
+        </div>
+    </div>
+
+    <script>
+        // 游戏数据
+        const gameData = {
+            currentScene: "home",
+            score: 0,
+            choices: [],
+            character: null,
+            
+            // 选择权重 - 修复版本
+            choiceWeights: {
+                // A线权重
+                "A_参军": 25, "A_游击": 15, "A_自保": 5,
+                "A1_均分": 20, "A1_优先": 10, "A1_私藏": 0,
+                "A2_上报": 20, "A2_审问": 8, "A2_隐匿": 0,
+                "A3_帮扶": 20, "A3_留粮": 10, "A3_离开": 0,
+                
+                // A线游击分支权重
+                "A4_护田": 20, "A4_隐忍": 10, "A4_放弃": 0,
+                "A5_藏护": 20, "A5_接济": 10, "A5_拒绝": 0,
+                "A6_重组": 20, "A6_潜伏": 10, "A6_沉寂": 0,
+                
+                // A线自保分支权重
+                "A7_保存": 15, "A7_敷衍": 8, "A7_铲除": 0,
+                "A8_不指": 15, "A8_指逃": 8, "A8_指认": 0,
+                "A9_不证": 15, "A9_含糊": 8, "A9_详证": 0,
+                
+                // B线权重
+                "B_送子": 25, "B_支前": 15, "B_拒参": 5,
+                "B1_暗藏": 20, "B1_留痕": 10, "B1_铲除": 0,
+                "B2_收留": 20, "B2_接济": 10, "B2_旁观": 0,
+                "B3_暗传": 20, "B3_沉默": 10, "B3_否认": 0,
+                
+                // B2线专属权重
+                "B2_捐献": 20, "B2_少量": 10, "B2_不捐": 0,
+                "B2_送信": 20, "B2_拒绝": 10, "B2_告密": 0,
+                "B2_誓死": 20, "B2_假契": 10, "B2_上交": 0,
+                
+                // B3线专属权重
+                "B3_沉默": 15, "B3_抱怨": 8, "B3_抗拒": 0,
+                "B3_帮扶": 15, "B3_旁观": 8, "B3_依附": 0,
+                "B3_藏匿": 15, "B3_烧毁": 8, "B3_自证": 0,
+                
+                // C线权重
+                "C_随军": 25, "C_地下": 15, "C_退出": 5,
+                "C1_宣讲": 20, "C1_简写": 10, "C1_放弃": 0,
+                "C2_坚持": 20, "C2_精简": 10, "C2_销毁": 0,
+                "C3_沟通": 20, "C3_观望": 10, "C3_回避": 0,
+                
+                // C2线专属权重
+                "C2_多处": 20, "C2_一处": 10, "C2_不留": 0,
+                "C2_夜校": 20, "C2_开导": 10, "C2_不谈": 0,
+                "C2_坚持宣传": 20, "C2_等待": 10, "C2_隐藏": 0,
+                
+                // C3线专属权重
+                "C3_留存": 15, "C3_少量": 8, "C3_销毁": 0,
+                "C3_开导": 15, "C3_旁观": 8, "C3_附和": 0,
+                "C3_奉献": 15, "C3_本职": 8, "C3_自保": 0
+            },
+            
+            // 结局定义
+            endings: {
+                A: [
+                    { 
+                        name: "赤诚英雄", 
+                        min: 85, 
+                        max: 100, 
+                        desc: "你在长征中始终坚守信念，无私奉献，成为真正的革命英雄。战友记得你的名字，你的故事在后来的岁月中被讲述，激励着一代又一代的追梦人。", 
+                        detail: "你最终抵达延安，被授予'模范红军战士'荣誉。在革命战争年代，你继续为人民服务，在解放战争中立功，建国后成为基层党员干部，直至生命最后一刻，你都在为人民谋幸福。"
+                    },
+                    { 
+                        name: "忠义战士", 
+                        min: 60, 
+                        max: 84, 
+                        desc: "你虽有瑕疵但忠于革命，最终成长为合格的红军战士。长征的磨砺打磨了你的意志，你在战火中逐渐明白什么才是真正的革命。", 
+                        detail: "长征后你参加了延安整风运动，在思想改造中更加坚定了信念。抗战时期你成为一名优秀的军政干部，为民族解放做出了应有的贡献。"
+                    },
+                    { 
+                        name: "平凡余生", 
+                        min: 40, 
+                        max: 59, 
+                        desc: "你在乱世中勉强自保，度过了平凡但留有遗憾的一生。战争结束后，你回到故乡务农，有妻有子，但心中对长征的记忆始终如梗。", 
+                        detail: "每年的重大纪念日，你都会在夜深人静时想起那段峥嵘岁月。你没有立下丰功伟绩，但也没有背弃信仰，这或许就是普通人最大的坚守。"
+                    },
+                    { 
+                        name: "失节之痛", 
+                        min: 0, 
+                        max: 39, 
+                        desc: "你的选择背离了革命理想，最终在悔恨中度日。解放后，这段历史成为你无法言说的秘密，你活在自我责备中。", 
+                        detail: "晚年时，你经常独自望向远方，心想：'如果当初……'但历史没有如果，你只能在悔恨中等待生命的终结。"
+                    }
+                ],
+                B: [
+                    { 
+                        name: "千秋红母", 
+                        min: 85, 
+                        max: 100, 
+                        desc: "你深明大义，为革命付出一切，成为受人敬仰的革命母亲。在白色恐怖中，你用柔弱的身躯保护了星星之火，你的故事被后人传颂。", 
+                        detail: "解放后，你被评为'革命烈士家属'，受到政府照顾。你亲眼看到了那个你儿子为之奋斗的新中国，在幸福与遗憾的交织中，走完了人生的最后篇章。"
+                    },
+                    { 
+                        name: "平凡大义", 
+                        min: 60, 
+                        max: 84, 
+                        desc: "你在力所能及的范围内支持革命，守护了良心和尊严。你没有轰轰烈烈的故事，但你的每一个选择都是对信仰的坚守。", 
+                        detail: "战争结束后，你见证了自己儿子参加的革命所改变的中国。虽然失去了儿子，但你知道，他的牺牲不是徒劳，这足以慰藉你的余生。"
+                    },
+                    { 
+                        name: "乱世苟全", 
+                        min: 40, 
+                        max: 59, 
+                        desc: "你优先保护家庭，在乱世中艰难求生。这个选择让你活了下来，却也让你难以原谅自己。", 
+                        detail: "解放后，你看到新中国的诞生，想起了曾经的战友和牺牲者。你活了下来，却常常问自己：这样活着，有意义吗？"
+                    },
+                    { 
+                        name: "失节之辱", 
+                        min: 0, 
+                        max: 39, 
+                        desc: "你为自保而背离道义，最终失去尊严。这段历史成为你一生的污点，无论走到哪里，你都抬不起头。", 
+                        detail: "晚年时，你孤独而又自怜。你生存了下来，却失去了作为人的尊严。你常常想，如果能重来，你会做出不同的选择。但人生没有重来，只有无尽的悔恨。"
+                    }
+                ],
+                C: [
+                    { 
+                        name: "巾帼史笔", 
+                        min: 85, 
+                        max: 100, 
+                        desc: "你用笔记录历史，用生命传播真理，成为革命的火炬。你的日记和标语见证了长征，激励了无数人前行。", 
+                        detail: "建国后，你成为一名历史学家，你的长征日记成为重要的历史文献。你培养了无数学生，将长征精神代代相传，直到生命的最后时刻。"
+                    },
+                    { 
+                        name: "稳健履职", 
+                        min: 60, 
+                        max: 84, 
+                        desc: "你尽职尽责地完成了宣传任务，无愧于心。长征的艰难让你更加懂得信仰的可贵，也让你更加珍惜和平的来之不易。", 
+                        detail: "解放后，你继续从事宣传工作，为新中国建设贡献自己的力量。虽然没有惊天动地的成就，但你无愧于自己选择的道路。"
+                    },
+                    { 
+                        name: "平凡归尘", 
+                        min: 40, 
+                        max: 59, 
+                        desc: "你最终选择了平凡的生活，与革命渐行渐远。岁月磨平了曾经的棱角，也带走了曾经的理想。", 
+                        detail: "新中国成立后，你回到家乡，结婚生子，过着普通人的生活。但每当听到关于长征的讲述，心中仍会泛起一丝涟漪，只是再也不愿意回忆。"
+                    },
+                    { 
+                        name: "弃职之憾", 
+                        min: 0, 
+                        max: 39, 
+                        desc: "你在关键时刻退缩，留下了终身的遗憾。放弃宣传使命，等于放弃了革命的理想，也放弃了自己的初心。", 
+                        detail: "晚年的你在平淡中度过，但内心始终无法平静。你知道，自己本可以做更多，可以为理想做得更好，但一切都已成过去。"
+                    }
+                ]
+            }
+        };
+
+        // 游戏场景数据
+        const scenes = {
+            home: {
+                title: "星火抉择——土地革命与长征",
+                content: `
+                    <div class="slogan-box">"打土豪，分田地，耕者有其田" "工农团结，翻身做主"</div>
+                    <p><strong>1933年冬—1934年秋，中央苏区。</strong></p>
+                    <p>土地革命让千年佃农第一次拥有自己的土地，但第五次反"围剿"失利，战火逼近，主力红军即将踏上万里长征。</p>
+                    <p>在这个历史的十字路口，平凡的苏区普通人，将用一次次抉择决定自己的命运。</p>
+                `,
+                choices: [
+                    { text: "开始游戏", action: "characters" }
+                ]
+            },
+            
+            characters: {
+                title: "请选择你的身份",
+                content: `
+                    <p>选择你的身份，开启长征抉择：</p>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 20px;">
+                        <div class="choice-btn" onclick="selectCharacter('A')">
+                            <strong>适龄青壮苏区青年</strong><br>
+                            <small>二十一岁，世代佃农，今年在土地革命中分到四亩良田</small>
+                        </div>
+                        <div class="choice-btn" onclick="selectCharacter('B')">
+                            <strong>苏区留守老母亲</strong><br>
+                            <small>年过半百，三代佃农第一次拥有土地，家中三子已去其二</small>
+                        </div>
+                        <div class="choice-btn" onclick="selectCharacter('C')">
+                            <strong>红军妇女宣传战士</strong><br>
+                            <small>十九岁，苏区妇女识字班毕业，专职标语书写员</small>
+                        </div>
+                    </div>
+                `,
+                choices: []
+            },
+            
+            // A线
+            A: {
+                title: "适龄青壮苏区青年",
+                content: `
+                    <p>你二十一岁，世代佃农。今年终于在土地革命中分到四亩良田、完整田契。</p>
+                    <div class="diary-box">"民国二十二年冬，分田四亩三分。红军救穷人于水火，我辈当知恩守义。"</div>
+                    <div class="slogan-box">"保卫土地，保卫苏维埃！工农子弟拿起枪，不让白匪再回乡"</div>
+                    <p>村口动员铜锣敲响，主力红军即将长征，征集青壮参军、支前、游击。</p>
+                `,
+                choices: [
+                    { text: "报名参军，随军长征", action: "A1", weightKey: "A_参军" },
+                    { text: "留守苏区，开展游击", action: "A2", weightKey: "A_游击" },
+                    { text: "闭门自保，守护田地", action: "A3", weightKey: "A_自保" }
+                ]
+            },
+            
+            A1: {
+                title: "报名参军，随军长征",
+                content: `
+                    <p>你毅然报名参军，决心跟随红军长征。</p>
+                    <div class="diary-box">"乙亥年二月初八，辞别父母，随军长征。愿以七尺躯，换得山河安。"</div>
+                    <div class="slogan-box">"不怕苦不怕累，坚决完成战略转移"</div>
+                `,
+                choices: [
+                    { text: "继续 →", action: "A1-1" }
+                ]
+            },
+            
+            "A1-1": {
+                title: "粮草危机",
+                content: `
+                    <p>行军途中，粮草告急。你负责班级分粮，干粮袋见底，伤员面色苍白。</p>
+                    <div class="slogan-box">"团结互助，共渡难关"</div>
+                    <p>你是新兵班长，手中只剩最后五块薯干。三名伤员、两名新兵、包括你自己都等着这口粮。</p>
+                `,
+                choices: [
+                    { text: "均分干粮，自食最少，帮扶伤员", action: "A1-2", weightKey: "A1_均分" },
+                    { text: "优先自保，少量接济重伤员", action: "A1-2", weightKey: "A1_优先" },
+                    { text: "私藏干粮，利己自保", action: "A1-2", weightKey: "A1_私藏" }
+                ]
+            },
+            
+            "A1-2": {
+                title: "情报危机",
+                content: `
+                    <p>湘江战前，夜哨查获敌军便衣，搜出布防地图。</p>
+                    <div class="slogan-box">"严守纪律，报效工农"</div>
+                    <p>俘虏求饶，愿以银元换命："军爷，放了我，这二十银元都给你。地图是假的，不值钱。"</p>
+                `,
+                choices: [
+                    { text: "立即押送连部，上交情报", action: "A1-3", weightKey: "A2_上报" },
+                    { text: "私夺银元，审问后放人", action: "A1-3", weightKey: "A2_审问" },
+                    { text: "夺物杀俘，隐匿不报", action: "A1-3", weightKey: "A2_隐匿" }
+                ]
+            },
+            
+            "A1-3": {
+                title: "雪山抉择",
+                content: `
+                    <p>夹金山雪山，风雪封山，氧气稀薄。少年战士冻僵倒地，嘴唇青紫。</p>
+                    <div class="slogan-box">"团结互助，共渡难关" "不落下一人"</div>
+                    <p>你也已体力耗尽。扶他，可能两人都死；不扶，他必死无疑。</p>
+                `,
+                choices: [
+                    { text: "脱衣帮扶，搀扶同行", action: "calculateEnding", weightKey: "A3_帮扶" },
+                    { text: "留粮留衣，独自前行", action: "calculateEnding", weightKey: "A3_留粮" },
+                    { text: "怕被拖累，径直离开", action: "calculateEnding", weightKey: "A3_离开" }
+                ]
+            },
+            
+            // A2 - 游击分支
+            A2: {
+                title: "留守苏区，开展游击",
+                content: `
+                    <p>你选择留下，加入苏区游击队，守护刚刚翻身的土地。</p>
+                    <div class="diary-box">"主力远去，我辈留守。守土守心，不灭星火。"</div>
+                    <div class="slogan-box">"红旗不倒，火种不灭"</div>
+                `,
+                choices: [
+                    { text: "继续 →", action: "A2-1" }
+                ]
+            },
+            
+            "A2-1": {
+                title: "土地危机",
+                content: `
+                    <p>白军与还乡团反攻，勒令三日内交还土地契约。</p>
+                    <div class="slogan-box">"凡退田认罪者，既往不咎"</div>
+                    <p>村口贴出告示。这是红军分给你的田，是你家三代第一份产业。</p>
+                `,
+                choices: [
+                    { text: "串联群众，组织护田队", action: "A2-2", weightKey: "A4_护田" },
+                    { text: "表面退田，暗藏真契", action: "A2-2", weightKey: "A4_隐忍" },
+                    { text: "交出田契，低头认罪", action: "A2-2", weightKey: "A4_放弃" }
+                ]
+            },
+            
+            "A2-2": {
+                title: "伤员危机",
+                content: `
+                    <p>三名重伤员被安置后山，缺医少药。白军搜查日紧，悬赏：藏红军者诛全族。</p>
+                    <div class="slogan-box">"军民一家，生死相依"</div>
+                    <p>伤员老周高烧三日，再不救治恐性命不保。</p>
+                `,
+                choices: [
+                    { text: "冒险接回家中看护", action: "A2-3", weightKey: "A5_藏护" },
+                    { text: "每夜送粮送药至山洞", action: "A2-3", weightKey: "A5_接济" },
+                    { text: "怕株连，让伤员自生自灭", action: "A2-3", weightKey: "A5_拒绝" }
+                ]
+            },
+            
+            "A2-3": {
+                title: "信仰危机",
+                content: `
+                    <p>一年过去，音讯全无。有传言红军全军覆没。昔日战友找你："还等吗？不如散了。"</p>
+                    <div class="slogan-box">"星星之火，可以燎原"</div>
+                    <p>你望向藏枪处，标语已模糊不清。还要坚持吗？</p>
+                `,
+                choices: [
+                    { text: "坚定信念，主动袭扰", action: "calculateEnding", weightKey: "A6_重组" },
+                    { text: "继续潜伏，但只自保", action: "calculateEnding", weightKey: "A6_潜伏" },
+                    { text: "彻底绝望，交出藏枪", action: "calculateEnding", weightKey: "A6_沉寂" }
+                ]
+            },
+            
+            // A3 - 自保分支
+            A3: {
+                title: "闭门自保，守护田地",
+                content: `
+                    <p>你决定闭门自保，守护分得的田地。</p>
+                    <div class="diary-box">"民国二十三年九月初八，乱世如沸。我只要四亩田、一间屋、一家人平安。"</div>
+                    <div class="slogan-box">"保卫胜利果实"</div>
+                `,
+                choices: [
+                    { text: "继续 →", action: "A3-1" }
+                ]
+            },
+            
+            "A3-1": {
+                title: "标语危机",
+                content: `
+                    <p>白军勒令全村三日铲净红军标语，否则以通匪论处。</p>
+                    <p>你家墙上有你亲手刷的"打土豪分田地"。</p>
+                `,
+                choices: [
+                    { text: "和泥覆盖，暗保标语", action: "A3-2", weightKey: "A7_保存" },
+                    { text: "铲去大字，留半痕", action: "A3-2", weightKey: "A7_敷衍" },
+                    { text: "当众彻底铲净", action: "A3-2", weightKey: "A7_铲除" }
+                ]
+            },
+            
+            "A3-2": {
+                title: "举报危机",
+                content: `
+                    <p>还乡团抓人，要你指认谁是"积极分子"。</p>
+                    <p>名单上有救过你娘的邻居陈伯、借过你粮的李叔。</p>
+                `,
+                choices: [
+                    { text: "宁死不指，咬定不知", action: "A3-3", weightKey: "A8_不指" },
+                    { text: "指认已逃走的人", action: "A3-3", weightKey: "A8_指逃" },
+                    { text: "为自保，指认三人", action: "A3-3", weightKey: "A8_指认" }
+                ]
+            },
+            
+            "A3-3": {
+                title: "良心危机",
+                content: `
+                    <p>分你家田的佃户老赵被逼租，上吊死了。</p>
+                    <p>其妻跪求你作证：当年分田是红军强分，非其所愿。如此可免其家债。</p>
+                `,
+                choices: [
+                    { text: "拒绝作伪证，接济遗孤", action: "calculateEnding", weightKey: "A9_不证" },
+                    { text: "含糊作证，说随大流", action: "calculateEnding", weightKey: "A9_含糊" },
+                    { text: "详细作证，说其主动", action: "calculateEnding", weightKey: "A9_详证" }
+                ]
+            },
+            
+            // B线
+            B: {
+                title: "苏区留守老母亲",
+                content: `
+                    <p>你年过半百，居于江西瑞金沙洲坝。土地革命让你家三代佃农第一次拥有自有田地。</p>
+                    <div class="diary-box">"甲戌年冬至，分田三亩二分。红军不欺民、不夺利，救穷苦百姓于水火。"</div>
+                    <div class="slogan-box">"一人参军，全家光荣" "送子当红军，保卫好光景"</div>
+                    <p>你的长子支前运粮，次子已牺牲于反"围剿"。家中仅剩18岁小儿子。</p>
+                    <p>村口扩红动员会召开，乡干部上门："大娘，红军要长征了，您家三子……"</p>
+                `,
+                choices: [
+                    { text: "忍痛明大义，送子参军", action: "B1", weightKey: "B_送子" },
+                    { text: "只做后勤支前，不送子参军", action: "B2", weightKey: "B_支前" },
+                    { text: "坚决拒参军，守护独子", action: "B3", weightKey: "B_拒参" }
+                ]
+            },
+            
+            B1: {
+                title: "送子参军",
+                content: `
+                    <p>你含泪为儿整理行囊，塞入亲手绣的红五星和字条：</p>
+                    <div class="slogan-box">"工农子弟不怕死，跟着红军为人民"</div>
+                    <div class="diary-box">"乙亥年二月初八，送三儿参军。然无国哪有家？愿山河无恙，穷人永得安生。"</div>
+                `,
+                choices: [
+                    { text: "继续 →", action: "B1-1" }
+                ]
+            },
+            
+            "B1-1": {
+                title: "标语守护",
+                content: `
+                    <p>白军反扑，勒令三日铲净一切红军标语，违者以通匪论处。</p>
+                    <p>你家墙上有小儿子的字、丈夫生前最爱的"土地归农"。</p>
+                `,
+                choices: [
+                    { text: "深夜和泥糊墙，完整保存", action: "B1-2", weightKey: "B1_暗藏" },
+                    { text: "铲去显眼大字，留半痕", action: "B1-2", weightKey: "B1_留痕" },
+                    { text: "亲手铲除所有标语", action: "B1-2", weightKey: "B1_铲除" }
+                ]
+            },
+            
+            "B1-2": {
+                title: "伤员抉择",
+                content: `
+                    <p>主力撤离，两名重伤员藏于后山。邻居偷偷告知："白军搜山，伤员若不救，必死。"</p>
+                    <div class="slogan-box">"军民鱼水一家亲"</div>
+                    <p>你家已无男丁，若收留伤员被发现，全家遭殃。</p>
+                `,
+                choices: [
+                    { text: "冒险接回家，认作远亲", action: "B1-3", weightKey: "B2_收留" },
+                    { text: "每夜送饭送药至山洞", action: "B1-3", weightKey: "B2_接济" },
+                    { text: "恐惧株连，闭门不出", action: "B1-3", weightKey: "B2_旁观" }
+                ]
+            },
+            
+            "B1-3": {
+                title: "火种传承",
+                content: `
+                    <p>白色恐怖，孩童被教唱反歌。你六岁孙儿问："阿奶，他们说红军是匪，真的吗？"</p>
+                `,
+                choices: [
+                    { text: "深夜搂孙儿，讲分田故事", action: "calculateEnding", weightKey: "B3_暗传" },
+                    { text: "沉默良久，说'你还小，不懂'", action: "calculateEnding", weightKey: "B3_沉默" },
+                    { text: "顺应时势，说'红军不好'", action: "calculateEnding", weightKey: "B3_否认" }
+                ]
+            },
+            
+            B2: {
+                title: "只做后勤支前，不送子参军",
+                content: `
+                    <p>你心疼仅剩的小儿子，不忍他上战场流血牺牲。你对干部说："我家不拦着革命，孩子不去当兵打仗，留在村里帮着磨粮、抬担架、做支前后勤。"</p>
+                    <div class="slogan-box">"有钱出钱，有力出力"</div>
+                `,
+                choices: [
+                    { text: "继续支前工作 →", action: "B2-1" }
+                ]
+            },
+            
+            "B2-1": {
+                title: "支前物资捐献抉择",
+                content: `
+                    <p>苏区紧急筹备长征物资，征集农户粗粮、布鞋、棉布。</p>
+                    <p>家中存粮是你过冬全部积蓄，你选择：</p>
+                `,
+                choices: [
+                    { text: "捐献大半粮食、数十双布鞋，全力支援红军转移", action: "B2-2", weightKey: "B2_捐献" },
+                    { text: "少量捐献，应付差事、量力而行", action: "B2-2", weightKey: "B2_少量" },
+                    { text: "借口家贫，分文不捐、拒不支前", action: "B2-2", weightKey: "B2_不捐" }
+                ]
+            },
+            
+            "B2-2": {
+                title: "长征密信传递抉择",
+                content: `
+                    <p>主力撤离前夜，游击队员深夜敲门，托付你传递苏区留守暗号密信，一旦被抓必死无疑。</p>
+                `,
+                choices: [
+                    { text: "冒险受托，连夜翻山送信", action: "B2-3", weightKey: "B2_送信" },
+                    { text: "推脱年老体弱，委婉拒绝", action: "B2-3", weightKey: "B2_拒绝" },
+                    { text: "恐慌害怕，假意答应却告密自保", action: "B2-3", weightKey: "B2_告密" }
+                ]
+            },
+            
+            "B2-3": {
+                title: "田契留存抉择",
+                content: `
+                    <p>白军还乡倒算，勒令所有分田农户上交苏维埃田契、认罪退田。</p>
+                    <p>你手中握着来之不易的分田契书，这是土地革命最珍贵的证明，你选择：</p>
+                `,
+                choices: [
+                    { text: "誓死藏好田契，绝不退田认罪", action: "calculateEnding", weightKey: "B2_誓死" },
+                    { text: "上交假田契，勉强应付", action: "calculateEnding", weightKey: "B2_假契" },
+                    { text: "主动上交真田契，跪地认罪退田", action: "calculateEnding", weightKey: "B2_上交" }
+                ]
+            },
+            
+            B3: {
+                title: "坚决拒参军，守护独子",
+                content: `
+                    <p>战火将至，你只剩下这一个孩子。你看着战乱山河，终究舍不得骨肉分离。</p>
+                    <p>你回绝干部："我家儿子不去参军，不去支前，我只求一家人平安活着。"</p>
+                `,
+                choices: [
+                    { text: "继续自保生活 →", action: "B3-1" }
+                ]
+            },
+            
+            "B3-1": {
+                title: "乡邻动员抉择",
+                content: `
+                    <p>村干部继续动员全村青年参军，身边孤寡乡亲、烈士家属纷纷主动送子弟上前线。</p>
+                    <p>有人劝你顾全大局，你选择：</p>
+                `,
+                choices: [
+                    { text: "沉默愧疚，不再阻拦他人拥军", action: "B3-2", weightKey: "B3_沉默" },
+                    { text: "私下抱怨战乱，非议红军征兵", action: "B3-2", weightKey: "B3_抱怨" },
+                    { text: "串联乡民抗拒扩红，动摇军心民心", action: "B3-2", weightKey: "B3_抗拒" }
+                ]
+            },
+            
+            "B3-2": {
+                title: "土豪还乡态度抉择",
+                content: `
+                    <p>老土豪随白军返乡，重新霸占良田、欺压百姓、报复当年分田农户。</p>
+                    <p>看着乡邻再次被压榨欺凌，你选择：</p>
+                `,
+                choices: [
+                    { text: "暗中帮扶受害乡邻，力所能及接济弱者", action: "B3-3", weightKey: "B3_帮扶" },
+                    { text: "紧闭门窗、冷眼旁观、独善其身", action: "B3-3", weightKey: "B3_旁观" },
+                    { text: "依附土豪白军，讨好强权保全自己", action: "B3-3", weightKey: "B3_依附" }
+                ]
+            },
+            
+            "B3-3": {
+                title: "红色日记处置抉择",
+                content: `
+                    <p>你手中还留着当年的翻身日记，记录土地革命的恩情与岁月。</p>
+                    <p>白军严查所有红色文字，你选择：</p>
+                `,
+                choices: [
+                    { text: "深埋藏匿、誓死留存记忆", action: "calculateEnding", weightKey: "B3_藏匿" },
+                    { text: "烧毁日记、彻底抹去红色过往", action: "calculateEnding", weightKey: "B3_烧毁" },
+                    { text: "上交白军、主动自证清白", action: "calculateEnding", weightKey: "B3_自证" }
+                ]
+            },
+            
+            // C线
+            C: {
+                title: "红军妇女宣传战士",
+                content: `
+                    <p>你十九岁，苏区专职标语书写员、群众日记记录员。</p>
+                    <div class="diary-box">"执笔为枪，以字为火。我辈女子不求功名，只求唤醒万千姐妹。"</div>
+                    <div class="slogan-box">"男女平等，妇女解放" "女子拿起笔与枪，不靠豪强靠自己"</div>
+                    <p>主力即将长征，宣传战士分两路：随军转移 / 地下留守。</p>
+                `,
+                choices: [
+                    { text: "随军长征，边走边宣传", action: "C1", weightKey: "C_随军" },
+                    { text: "留守苏区，地下宣传", action: "C2", weightKey: "C_地下" },
+                    { text: "退出宣传岗，转为后勤", action: "C3", weightKey: "C_退出" }
+                ]
+            },
+            
+            C1: {
+                title: "随军长征宣传",
+                content: `
+                    <p>你背上石灰桶、毛笔、日记本，随军出发。</p>
+                    <div class="slogan-box">"红军是穷人的队伍" "只有苏维埃能救中国"</div>
+                `,
+                choices: [
+                    { text: "继续 →", action: "C1-1" }
+                ]
+            },
+            
+            "C1-1": {
+                title: "唤醒群众",
+                content: `
+                    <p>行军至湘西荒村，百姓受反动宣传，闭门躲避。队长命令："写标语，做宣传，唤醒群众。"</p>
+                `,
+                choices: [
+                    { text: "冒险进村，挨家宣讲", action: "C1-2", weightKey: "C1_宣讲" },
+                    { text: "在村口简写标语，快速通过", action: "C1-2", weightKey: "C1_简写" },
+                    { text: "放弃宣传，怕敌特埋伏", action: "C1-2", weightKey: "C1_放弃" }
+                ]
+            },
+            
+            "C1-2": {
+                title: "战地记录",
+                content: `
+                    <p>战火纷飞，日记本被子弹打穿。战友劝："别写了，保命要紧！"</p>
+                `,
+                choices: [
+                    { text: "以血代墨，坚持每日记录", action: "C1-3", weightKey: "C2_坚持" },
+                    { text: "精简记录，只记大事", action: "C1-3", weightKey: "C2_精简" },
+                    { text: "恐惧搜捕，烧毁全部日记", action: "C1-3", weightKey: "C2_销毁" }
+                ]
+            },
+            
+            "C1-3": {
+                title: "民族沟通",
+                content: `
+                    <p>进入彝族区，群众受谣言敌视红军。标语需用彝汉双文。</p>
+                `,
+                choices: [
+                    { text: "请教翻译，学彝文写双语标语", action: "calculateEnding", weightKey: "C3_沟通" },
+                    { text: "只写汉字标语，快速通过", action: "calculateEnding", weightKey: "C3_观望" },
+                    { text: "回避群众，绕道而行", action: "calculateEnding", weightKey: "C3_回避" }
+                ]
+            },
+            
+            C2: {
+                title: "地下宣传",
+                content: `
+                    <p>你转入地下，代号"墨兰"。</p>
+                    <div class="slogan-box">"星火不灭，静待归来" "红旗不倒，信念永存"</div>
+                `,
+                choices: [
+                    { text: "继续 →", action: "C2-1" }
+                ]
+            },
+            
+            "C2-1": {
+                title: "秘密传标抉择",
+                content: `
+                    <p>白色恐怖严禁一切红色标语，你深夜偷偷刷写迷你隐蔽标语："星火不灭，静待归来"。</p>
+                    <p>你选择传播尺度：</p>
+                `,
+                choices: [
+                    { text: "深夜山村多处隐秘留标、唤醒民心", action: "C2-2", weightKey: "C2_多处" },
+                    { text: "仅自家屋后悄悄留一处", action: "C2-2", weightKey: "C2_一处" },
+                    { text: "彻底不敢留任何标语", action: "C2-2", weightKey: "C2_不留" }
+                ]
+            },
+            
+            "C2-2": {
+                title: "青年启蒙抉择",
+                content: `
+                    <p>苏区留守青年迷茫颓废，不知前路何在。</p>
+                `,
+                choices: [
+                    { text: "秘密组织夜校、讲土改、讲长征、讲妇女解放", action: "C2-3", weightKey: "C2_夜校" },
+                    { text: "私下零星开导、点到为止", action: "C2-3", weightKey: "C2_开导" },
+                    { text: "闭口不谈、随众沉沦", action: "C2-3", weightKey: "C2_不谈" }
+                ]
+            },
+            
+            "C2-3": {
+                title: "信仰坚守抉择",
+                content: `
+                    <p>白色恐怖日益严重，敌人加强巡查力度，地下工作愈发危险。</p>
+                `,
+                choices: [
+                    { text: "坚持地下宣传，继续传播革命思想", action: "calculateEnding", weightKey: "C2_坚持宣传" },
+                    { text: "暂时停止活动，等待时机", action: "calculateEnding", weightKey: "C2_等待" },
+                    { text: "完全停止地下工作，彻底隐藏", action: "calculateEnding", weightKey: "C2_隐藏" }
+                ]
+            },
+            
+            C3: {
+                title: "退出宣传岗，转为后勤",
+                content: `
+                    <p>你对队长说："我……我想去后勤。"你被分配到被服厂，缝补军衣。</p>
+                `,
+                choices: [
+                    { text: "继续后勤工作 →", action: "C3-1" }
+                ]
+            },
+            
+            "C3-1": {
+                title: "对待旧标语文稿抉择",
+                content: `
+                    <p>你拥有大量手写标语底稿、宣传文稿、手抄日记。</p>
+                `,
+                choices: [
+                    { text: "分类密藏、妥善留存", action: "C3-2", weightKey: "C3_留存" },
+                    { text: "挑少量留存，其余送人", action: "C3-2", weightKey: "C3_少量" },
+                    { text: "全部销毁、彻底脱离过往", action: "C3-2", weightKey: "C3_销毁" }
+                ]
+            },
+            
+            "C3-2": {
+                title: "队伍思想帮扶抉择",
+                content: `
+                    <p>身边新兵思想动摇、畏惧长征苦难、心生退意。曾为宣传员的你，选择：</p>
+                `,
+                choices: [
+                    { text: "主动开导、宣讲标语精神、坚定信念", action: "C3-3", weightKey: "C3_开导" },
+                    { text: "沉默旁观、不予干预", action: "C3-3", weightKey: "C3_旁观" },
+                    { text: "附和消极情绪、涣散军心", action: "C3-3", weightKey: "C3_附和" }
+                ]
+            },
+            
+            "C3-3": {
+                title: "信仰抉择",
+                content: `
+                    <p>长征途中，你面临内心的挣扎。曾经的宣传理想与现实的后勤工作形成对比。</p>
+                `,
+                choices: [
+                    { text: "继续在后勤岗位默默奉献，不忘初心", action: "calculateEnding", weightKey: "C3_奉献" },
+                    { text: "做好本职，但不再关心革命理想", action: "calculateEnding", weightKey: "C3_本职" },
+                    { text: "彻底放弃革命理想，只求自保", action: "calculateEnding", weightKey: "C3_自保" }
+                ]
+            }
+        };
+
+        // 游戏逻辑
+        function loadScene(sceneId) {
+            const scene = scenes[sceneId];
+            if (!scene) {
+                console.error("场景不存在:", sceneId);
+                document.getElementById("game-content").innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <h3>⚠️ 场景加载失败</h3>
+                        <p>游戏数据出错，请重新开始</p>
+                        <button class="restart-btn" onclick="restartGame()">重新开始</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            gameData.currentScene = sceneId;
+            const contentDiv = document.getElementById("game-content");
+            
+            // 构建场景HTML
+            let html = `
+                <div class="scene-title">${scene.title}</div>
+                <div class="scene-content">${scene.content}</div>
+            `;
+            
+            // 显示当前分数
+            if (gameData.character) {
+                html += `<div class="score-display">当前信念值: ${gameData.score}</div>`;
+            }
+            
+            // 添加选择按钮
+            if (scene.choices && scene.choices.length > 0) {
+                html += '<div class="choices-container"><h3>请做出选择：</h3>';
+                scene.choices.forEach(choice => {
+                    const safeText = choice.text.replace(/'/g, "\\'");
+                    const weightKey = choice.weightKey ? `'${choice.weightKey}'` : 'null';
+                    html += `
+                        <button class="choice-btn" onclick="handleChoice('${choice.action}', ${weightKey}, '${safeText}')">
+                            ${choice.text}
+                        </button>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            contentDiv.innerHTML = html;
+        }
+
+        function selectCharacter(char) {
+            gameData.character = char;
+            loadScene(char);
+        }
+
+        function handleChoice(action, weightKey, text) {
+            // 记录选择
+            gameData.choices.push({ text, action, weightKey });
+            
+            // 计算分数
+            if (weightKey && weightKey !== 'null' && gameData.choiceWeights[weightKey] !== undefined) {
+                const score = gameData.choiceWeights[weightKey];
+                gameData.score += score;
+                console.log(`选择: ${text}, 权重: ${weightKey}, 得分: ${score}, 总分: ${gameData.score}`);
+            } else if (weightKey && weightKey !== 'null') {
+                console.error(`权重键未找到: ${weightKey}`);
+            }
+            
+            // 处理特殊动作
+            if (action === "calculateEnding") {
+                calculateEnding();
+            } else {
+                loadScene(action);
+            }
+        }
+
+        function calculateEnding() {
+            const char = gameData.character;
+            const score = gameData.score;
+            
+            console.log(`计算结局: 角色=${char}, 总分=${score}, 结局选项:`, gameData.endings[char]);
+            
+            if (!char) {
+                document.getElementById("game-content").innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <h3>⚠️ 结局计算失败</h3>
+                        <p>未选择角色，无法计算结局</p>
+                        <button class="restart-btn" onclick="restartGame()">重新开始</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 获取该角色的结局列表
+            const charEndings = gameData.endings[char];
+            if (!charEndings) {
+                document.getElementById("game-content").innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <h3>⚠️ 结局数据错误</h3>
+                        <p>请重新开始游戏</p>
+                        <button class="restart-btn" onclick="restartGame()">重新开始</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 根据分数确定结局
+            let ending = charEndings[charEndings.length - 1]; // 默认最低分结局
+            for (let i = 0; i < charEndings.length; i++) {
+                console.log(`检查结局 ${charEndings[i].name}: min=${charEndings[i].min}, max=${charEndings[i].max}, score=${score}`);
+                if (score >= charEndings[i].min && score <= charEndings[i].max) {
+                    ending = charEndings[i];
+                    break;
+                }
+            }
+            
+            console.log(`确定结局: ${ending.name}, 分数范围: ${ending.min}-${ending.max}, 当前分数: ${score}`);
+            
+            // 显示结局
+            showEnding(ending);
+        }
+
+        function showEnding(ending) {
+            const contentDiv = document.getElementById("game-content");
+            
+            const html = `
+                <div class="ending-container">
+                    <div class="ending-title">🎖️ 你的结局：${ending.name} 🎖️</div>
+                    <div class="score-display">最终信念值: ${gameData.score}</div>
+                    <div class="ending-description">
+                        <p>${ending.desc}</p>
+                        <div class="ending-detail">${ending.detail}</div>
+                        <div class="historical-note">
+                            <strong>📚 历史启示：</strong><br>
+                            你的结局是那个时代无数普通人命运的一个缩影。在土地革命和长征的洪流中，每个人都面临着艰难的抉择。这些选择塑造了历史，也定义了人生。无论结局如何，重要的是在历史的十字路口，你做出了自己的选择，承担了相应的后果。这就是成长，这就是历史，这就是人生。
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <button class="restart-btn" onclick="restartGame()">重新开始游戏</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
+        }
+
+        function restartGame() {
+            // 重置游戏数据
+            gameData.currentScene = "home";
+            gameData.score = 0;
+            gameData.choices = [];
+            gameData.character = null;
+            
+            // 重新加载首页
+            loadScene("home");
+        }
+
+        // 初始化游戏
+        window.onload = function() {
+            loadScene("home");
+        };
+    </script>
+</body>
+</html>
